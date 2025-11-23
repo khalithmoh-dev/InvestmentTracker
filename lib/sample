@@ -1,0 +1,9 @@
+# Supabase Configuration
+# Get these values from your Supabase project settings: https://app.supabase.com/project/_/settings/api
+
+SUPABASE_URL=https://vqjnfvpdrqpjlakefbly.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxam5mdnBkcnFwamxha2VmYmx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MTc1NjEsImV4cCI6MjA3OTQ5MzU2MX0.GIf1EQwCVYdVZEdIc_7OD2_U3bDKvn4kGFh-v6_09w0
+
+# Alpha Vantage API Key (Optional - can also be set in app)
+ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
+
