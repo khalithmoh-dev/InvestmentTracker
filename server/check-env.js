@@ -30,9 +30,9 @@ const envContent = fs.readFileSync(envPath, 'utf8');
 const envLines = envContent.split('\n').filter(line => line.trim() && !line.startsWith('#'));
 
 const requiredVars = {
-  'SUPABASE_URL': false,
-  'SUPABASE_ANON_KEY': false,
-  'ALPHA_VANTAGE_API_KEY': false,
+  MONGO_URI: false,
+  ALPHA_VANTAGE_API_KEY: false,
+  JWT_SECRET: false,
 };
 
 let hasErrors = false;
@@ -51,7 +51,7 @@ envLines.forEach(line => {
 });
 
 console.log('\n📋 Environment Variables Status:');
-Object.keys(requiredVars).forEach(key => {
+Object.keys(requiredVars).forEach((key) => {
   if (requiredVars[key]) {
     console.log(`   ✅ ${key}`);
   } else {

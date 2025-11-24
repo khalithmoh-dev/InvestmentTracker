@@ -17,8 +17,8 @@ npm install
    - Edit `.env` and add your credentials:
    ```
    PORT=5000
-   SUPABASE_URL=your_supabase_project_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
+   MONGO_URI=your_mongodb_connection_string
+   JWT_SECRET=your_jwt_secret
    ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
    ```
 
@@ -37,9 +37,9 @@ npm start
 The `.env` file should be located in the `server/` directory (same level as `package.json`).
 
 Required variables:
-- `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_ANON_KEY` - Your Supabase anon/public key
-- `ALPHA_VANTAGE_API_KEY` - Your Alpha Vantage API key (for stock prices)
+- `MONGO_URI` - Your MongoDB Atlas connection string
+- `JWT_SECRET` - Secret used to sign JWT tokens
+- `ALPHA_VANTAGE_API_KEY` - Alpha Vantage API key (for stock prices)
 - `PORT` - Server port (default: 5000)
 
 ## API Endpoints

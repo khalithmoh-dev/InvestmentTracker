@@ -4,6 +4,7 @@ import { loadInvestments, saveInvestments, addInvestment, deleteInvestment } fro
 import { updateInvestmentPrices, formatCurrency } from './utils/calculations';
 import InvestmentForm from './components/InvestmentForm';
 import InvestmentCard from './components/InvestmentCard';
+import AuthForm from './components/AuthForm';
 
 function App() {
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -11,18 +12,31 @@ function App() {
   const [editingInvestment, setEditingInvestment] = useState<Investment | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('auth_token'));
+  const [authUser, setAuthUser] = useState<{ id: string; name: string; email: string } | null>(() => {
+    const stored = localStorage.getItem('auth_user');
+    return stored ? JSON.parse(stored) : null;
+  });
 
   useEffect(() => {
+    if (!authToken) {
+      setInitialLoading(false);
+      return;
+    }
+
     const loadData = async () => {
       try {
         const loaded = await loadInvestments();
         setInvestments(loaded);
       } catch (error) {
         console.error('Error loading investments:', error);
+      } finally {
+        setInitialLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [authToken]);
 
   const handleAddInvestment = async (investment: Investment) => {
     try {
@@ -76,6 +90,43 @@ function App() {
     }
   };
 
+  const handleAuthSuccess = (
+    token: string,
+    userInfo: { id: string; name: string; email: string }
+  ) => {
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('auth_user', JSON.stringify(userInfo));
+    setAuthToken(token);
+    setAuthUser(userInfo);
+    setInitialLoading(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    setAuthToken(null);
+    setAuthUser(null);
+    setInvestments([]);
+  };
+
+  if (!authToken) {
+    return (
+      <main className="min-h-screen p-4 md:p-8 bg-gray-100 flex items-center">
+        <div className="w-full">
+          <AuthForm onSuccess={handleAuthSuccess} />
+        </div>
+      </main>
+    );
+  }
+
+  if (initialLoading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Loading investments...</p>
+      </main>
+    );
+  }
+
   const totalInvested = investments.reduce(
     (sum, inv) => {
       if (inv.type === 'cash') {
@@ -102,9 +153,23 @@ function App() {
   return (
     <main className="min-h-screen p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Investracker</h1>
-          <p className="text-gray-600">Track your investments in Gold, Stocks, Crypto, and Cash</p>
+        <header className="mb-8 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-1">Investracker</h1>
+            <p className="text-gray-600">Track your investments in Gold, Stocks, Crypto, and Cash</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-700">
+              <p className="font-semibold">{authUser?.name}</p>
+              <p className="text-gray-500">{authUser?.email}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="bg-red-100 text-red-700 px-4 py-2 rounded hover:bg-red-200 text-sm font-semibold"
+            >
+              Logout
+            </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

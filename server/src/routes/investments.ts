@@ -1,96 +1,67 @@
-import express, { Request, Response } from 'express';
-import { supabase, isSupabaseConfigured } from '../config/supabase';
+import express, { Response } from 'express';
+import { InvestmentModel } from '../models/Investment';
+import { AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Get user ID from request (for now using header, can be upgraded to auth)
-const getUserId = (req: Request): string => {
-  return req.headers['x-user-id'] as string || 'default_user';
-};
-
 // Get all investments
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    if (!isSupabaseConfigured()) {
-      return res.status(500).json({ error: 'Supabase not configured' });
-    }
-
-    const userId = getUserId(req);
-    const { data, error } = await supabase
-      .from('investments')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
-    const investments = (data || []).map((item: any) => ({
-      id: item.id,
-      type: item.type,
-      name: item.name,
-      symbol: item.symbol || undefined,
-      quantity: item.quantity,
-      purchasePrice: item.purchase_price,
-      purchaseDate: item.purchase_date,
-      currentPrice: item.current_price || undefined,
-      currentValue: item.current_value || undefined,
-      profitLoss: item.profit_loss || undefined,
-      profitLossPercent: item.profit_loss_percent || undefined,
-    }));
-
-    res.json(investments);
+    const userId = req.userId!;
+    const investments = await InvestmentModel.find({ userId }).sort({ createdAt: -1 });
+    res.json(
+      investments.map((item) => ({
+        id: item.id,
+        type: item.type,
+        name: item.name,
+        symbol: item.symbol || undefined,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        purchaseDate: item.purchaseDate,
+        currentPrice: item.currentPrice || undefined,
+        currentValue: item.currentValue || undefined,
+        profitLoss: item.profitLoss || undefined,
+        profitLossPercent: item.profitLossPercent || undefined,
+      }))
+    );
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Create new investment
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    if (!isSupabaseConfigured()) {
-      return res.status(500).json({ error: 'Supabase not configured' });
-    }
-
-    const userId = getUserId(req);
+    const userId = req.userId!;
     const investment = req.body;
 
-    const { data, error } = await supabase
-      .from('investments')
-      .insert({
-        user_id: userId,
-        id: investment.id,
-        type: investment.type,
-        name: investment.name,
-        symbol: investment.symbol || null,
-        quantity: investment.quantity,
-        purchase_price: investment.purchasePrice,
-        purchase_date: investment.purchaseDate,
-        current_price: investment.currentPrice || null,
-        current_value: investment.currentValue || null,
-        profit_loss: investment.profitLoss || null,
-        profit_loss_percent: investment.profitLossPercent || null,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const created = await InvestmentModel.create({
+      userId,
+      id: investment.id,
+      type: investment.type,
+      name: investment.name,
+      symbol: investment.symbol || null,
+      quantity: investment.quantity,
+      purchasePrice: investment.purchasePrice,
+      purchaseDate: investment.purchaseDate,
+      currentPrice: investment.currentPrice || null,
+      currentValue: investment.currentValue || null,
+      profitLoss: investment.profitLoss || null,
+      profitLossPercent: investment.profitLossPercent || null,
+    });
 
     res.json({
-      id: data.id,
-      type: data.type,
-      name: data.name,
-      symbol: data.symbol || undefined,
-      quantity: data.quantity,
-      purchasePrice: data.purchase_price,
-      purchaseDate: data.purchase_date,
-      currentPrice: data.current_price || undefined,
-      currentValue: data.current_value || undefined,
-      profitLoss: data.profit_loss || undefined,
-      profitLossPercent: data.profit_loss_percent || undefined,
+      id: created.id,
+      type: created.type,
+      name: created.name,
+      symbol: created.symbol || undefined,
+      quantity: created.quantity,
+      purchasePrice: created.purchasePrice,
+      purchaseDate: created.purchaseDate,
+      currentPrice: created.currentPrice || undefined,
+      currentValue: created.currentValue || undefined,
+      profitLoss: created.profitLoss || undefined,
+      profitLossPercent: created.profitLossPercent || undefined,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -98,13 +69,9 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Update investment
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    if (!isSupabaseConfigured()) {
-      return res.status(500).json({ error: 'Supabase not configured' });
-    }
-
-    const userId = getUserId(req);
+    const userId = req.userId!;
     const { id } = req.params;
     const updates = req.body;
 
@@ -119,30 +86,28 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (updates.profitLoss !== undefined) updateData.profit_loss = updates.profitLoss || null;
     if (updates.profitLossPercent !== undefined) updateData.profit_loss_percent = updates.profitLossPercent || null;
 
-    const { data, error } = await supabase
-      .from('investments')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const updated = await InvestmentModel.findOneAndUpdate(
+      { id, userId },
+      updateData,
+      { new: true }
+    );
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (!updated) {
+      return res.status(404).json({ error: 'Investment not found' });
     }
 
     res.json({
-      id: data.id,
-      type: data.type,
-      name: data.name,
-      symbol: data.symbol || undefined,
-      quantity: data.quantity,
-      purchasePrice: data.purchase_price,
-      purchaseDate: data.purchase_date,
-      currentPrice: data.current_price || undefined,
-      currentValue: data.current_value || undefined,
-      profitLoss: data.profit_loss || undefined,
-      profitLossPercent: data.profit_loss_percent || undefined,
+      id: updated.id,
+      type: updated.type,
+      name: updated.name,
+      symbol: updated.symbol || undefined,
+      quantity: updated.quantity,
+      purchasePrice: updated.purchasePrice,
+      purchaseDate: updated.purchaseDate,
+      currentPrice: updated.currentPrice || undefined,
+      currentValue: updated.currentValue || undefined,
+      profitLoss: updated.profitLoss || undefined,
+      profitLossPercent: updated.profitLossPercent || undefined,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -150,23 +115,15 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // Delete investment
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    if (!isSupabaseConfigured()) {
-      return res.status(500).json({ error: 'Supabase not configured' });
-    }
-
-    const userId = getUserId(req);
+    const userId = req.userId!;
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from('investments')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId);
+    const deleted = await InvestmentModel.findOneAndDelete({ id, userId });
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (!deleted) {
+      return res.status(404).json({ error: 'Investment not found' });
     }
 
     res.json({ success: true });
@@ -176,45 +133,31 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Bulk update investments (for price updates)
-router.post('/bulk', async (req: Request, res: Response) => {
+router.post('/bulk', async (req: AuthRequest, res: Response) => {
   try {
-    if (!isSupabaseConfigured()) {
-      return res.status(500).json({ error: 'Supabase not configured' });
-    }
-
-    const userId = getUserId(req);
+    const userId = req.userId!;
     const investments = req.body;
 
-    // Delete all existing investments for this user
-    await supabase
-      .from('investments')
-      .delete()
-      .eq('user_id', userId);
+    await InvestmentModel.deleteMany({ userId });
 
     // Insert all investments
     if (investments.length > 0) {
       const investmentsToInsert = investments.map((inv: any) => ({
-        user_id: userId,
+        userId,
         id: inv.id,
         type: inv.type,
         name: inv.name,
         symbol: inv.symbol || null,
         quantity: inv.quantity,
-        purchase_price: inv.purchasePrice,
-        purchase_date: inv.purchaseDate,
-        current_price: inv.currentPrice || null,
-        current_value: inv.currentValue || null,
-        profit_loss: inv.profitLoss || null,
-        profit_loss_percent: inv.profitLossPercent || null,
+        purchasePrice: inv.purchasePrice,
+        purchaseDate: inv.purchaseDate,
+        currentPrice: inv.currentPrice || null,
+        currentValue: inv.currentValue || null,
+        profitLoss: inv.profitLoss || null,
+        profitLossPercent: inv.profitLossPercent || null,
       }));
 
-      const { error } = await supabase
-        .from('investments')
-        .insert(investmentsToInsert);
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
+      await InvestmentModel.insertMany(investmentsToInsert);
     }
 
     res.json({ success: true });
